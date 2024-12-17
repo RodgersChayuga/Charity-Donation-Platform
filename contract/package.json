@@ -1,0 +1,38 @@
+{
+  "name": "contract",
+  "version": "1.0.0",
+  "description": "A comprehensive guide for creating a transparent and secure donation platform using Solidity",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RodgersChayuga/Charity-Donation-Platform.git"
+  },
+  "author": "Rodgers Chayuga",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/RodgersChayuga/Charity-Donation-Platform/issues"
+  },
+  "homepage": "https://github.com/RodgersChayuga/Charity-Donation-Platform#readme",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ignition": "^0.15.0",
+    "@nomicfoundation/hardhat-ignition-viem": "^0.15.0",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.0",
+    "@nomicfoundation/hardhat-toolbox-viem": "^3.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.0",
+    "@nomicfoundation/hardhat-viem": "^2.0.0",
+    "@types/chai": "^4.2.0",
+    "@types/chai-as-promised": "^7.1.6",
+    "@types/mocha": ">=9.1.0",
+    "@types/node": ">=18.0.0",
+    "chai": "^4.2.0",
+    "hardhat": "^2.22.17",
+    "hardhat-gas-reporter": "^1.0.8",
+    "solidity-coverage": "^0.8.0",
+    "ts-node": ">=8.0.0",
+    "typescript": "~5.0.4",
+    "viem": "^2.7.6"
+  }
+}
