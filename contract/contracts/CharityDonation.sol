@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.26;
 
 contract CharityDonation {
     mapping(address => uint) public donors;
@@ -21,22 +21,27 @@ contract CharityDonation {
     constructor(uint _targetAmount, uint _deadline) {
         targetAmount = _targetAmount;
         deadline = block.timestamp + _deadline; //_deadline in seconds
-        minimumDonation = 100 wei;
+        minimumDonation = 1 wei;
         owner = msg.sender;
     }
 
     // TODO: Create Campaign function
     function createCampaign() public {}
 
-    function donateToCampaign() public payable {
+    function donateToCampaign(uint _donatedAmount) public payable {
         require(block.timestamp < deadline, "Deadline has passed!");
         require(msg.value > minimumDonation, "Mini Contribution not met!");
-        require(msg.value > donatedAmount, "Try a lesser amount");
+        require(msg.value > _donatedAmount, "Try a lesser amount");
+        donatedAmount = _donatedAmount;
+        donorAddress = msg.sender;
 
         // If the donor is donating the first time, we increase the number of Donors by one, else it remains the same.
         if (donors[msg.sender] == 0) {
             numberOfDonors += 1;
         }
+
+        // deduct the donated amount from the donor's account
+        donors[msg.sender] -= msg.value;
 
         // We are adding the value added with the address to the donors mapping.
         donors[msg.sender] += msg.value;
@@ -50,11 +55,4 @@ contract CharityDonation {
 
     // TODO: Withdraw Fund function.
     function withdrawFunds() public {}
-
-    // the contract will receive eth, if there is a payable function called receive.
-    // This will be replaced by a frontend button
-    // TODO: remove once frontend is ready.
-    receive() external payable {
-        donateToCampaign();
-    }
 }
