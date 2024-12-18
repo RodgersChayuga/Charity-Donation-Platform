@@ -43,6 +43,11 @@ contract CharityDonationPlatform {
         uint256 amount
     );
     event CampaignCompleted(uint256 indexed campaignId, uint256 totalRaised);
+    event FundsWithdrawn(
+        uint256 indexed campaignId,
+        address indexed owner,
+        uint256 amount
+    );
 
     // ========================================== Create Campaign ==============================================
 
@@ -50,6 +55,12 @@ contract CharityDonationPlatform {
     uint256 public campaignCounter = 0;
 
     /**
+     * ========================== createCampaign() =========================
+     * Creates a new fundraising campaign with specified parameters
+     * Validates deadline and target amount
+     * Returns unique campaign ID for future reference
+     * Emits CampaignCreated event
+     *
      * @notice Create a new charity campaign
      * @param _title Campaign title
      * @param _description Campaign description
@@ -86,6 +97,15 @@ contract CharityDonationPlatform {
     }
 
     // ============================================ Donate to Campaign ================================================
+
+    /**
+     * ========================== donateToCampaign() =========================
+     * Allows users to donate ETH to specific campaigns
+     * Enforces minimum donation amount and campaign deadlines
+     * Tracks unique donors and updates campaign statistics
+     * Automatically marks campaign as complete when target reached
+     * Emits DonationReceived event
+     */
 
     /**
      * @notice Donate to a specific Campaign
@@ -153,9 +173,60 @@ contract CharityDonationPlatform {
     }
 
     // ============================================= Withdraw Function ================================================
+    /**
+     * ========================== withdrawFunds() =========================
+     * Allows campaign owner to withdraw raised funds
+     * Implements role-based access control for campaign owners
+     * Only accessible after campaign completion or deadline
+     * Includes re-entrancy protection
+     * Emits FundsWithdrawn event
+     */
+    /**
+     * @notice Withdraw funds from a completed campaign
+     * @param _campaignId The ID of the campaign to withdraw from
+     */
+    function withdrawFunds(uint256 _campaignId) public {
+        Campaign storage campaign = campaigns[_campaignId];
+
+        // Check if caller is the campaign owner
+        require(
+            msg.sender == campaign.owner,
+            "Only campaign owner can withdraw"
+        );
+
+        // Ensure campaign is completed either by reaching target or deadline
+        require(
+            campaign.isCompleted || block.timestamp > campaign.deadline,
+            "Campaign is still active"
+        );
+
+        // Ensure there are funds to withdraw
+        require(campaign.raisedAmount > 0, "No funds to withdraw");
+
+        // Get the amount to transfer
+        uint256 amountToWithdraw = campaign.raisedAmount;
+
+        // Reset raised amount to prevent re-entrancy
+        campaign.raisedAmount = 0;
+
+        // Transfer funds to campaign owner
+        (bool success, ) = payable(campaign.owner).call{
+            value: amountToWithdraw
+        }("");
+        require(success, "Transfer failed");
+
+        // Emit withdrawal event
+        emit FundsWithdrawn(_campaignId, campaign.owner, amountToWithdraw);
+    }
 
     // ================================== Get Donation difference and Percentage  =====================================
 
+    /**
+     * ========================== getRemainingAmount() =========================
+     * Calculates the exact amount still needed
+     * Returns 0 if target is already reached
+     * Prevents potential underflow
+     */
     /**
      * @notice Calculate the remaining amount needed to reach the campaign target.
      * @param _campaignId The ID of the Campaign.
@@ -175,6 +246,12 @@ contract CharityDonationPlatform {
     }
 
     /**
+     * ========================== getCampaignProgress() =========================
+     * Calculates the percentage of target amount that has been raised
+     * Returns 0 if target amount is zero to prevent division by zero
+     * Returns whole number percentage (e.g., 75 for 75%)
+     */
+    /**
      * @notice Get campaign progress percentage
      * @param _campaignId The ID of the campaign
      * @return progressPercentage Percentage of target amount raised
@@ -193,10 +270,3 @@ contract CharityDonationPlatform {
         return (campaign.raisedAmount * 100) / campaign.targetAmount;
     }
 }
-
-/**
- * ========================== getRemainingAmount() =========================
- * Calculates the exact amount still needed
- * Returns 0 if target is already reached
- * Prevents potential underflow
- */
