@@ -28,6 +28,30 @@ contract CharityDonation {
     uint256 public id;
     uint256 private campaignCounter; // Add this state variable at the top with other state variables
 
+    // Add a struct to store campaign data
+    struct Campaign {
+        uint256 id;
+        string title;
+        string description;
+        uint256 targetAmount;
+        uint256 raisedAmount;
+        uint256 deadline;
+        address owner;
+        bool isCompleted;
+        uint256 numberOfDonors;
+    }
+
+    // Add mapping to store multiple campaigns
+    mapping(uint256 => Campaign) public campaigns;
+
+    // Add pause/unpause functionality
+    bool public paused;
+
+    modifier whenNotPaused() {
+        require(!paused, "Contract is paused");
+        _;
+    }
+
     constructor(
         uint256 _targetAmount,
         uint256 _deadline,
@@ -131,6 +155,22 @@ contract CharityDonation {
 
         emit FundsWithdrawn(owner, balance);
     }
+
+    // Add function to get campaign details
+    function getCampaign(
+        uint256 _campaignId
+    ) public view returns (Campaign memory) {
+        return campaigns[_campaignId];
+    }
+
+    // Add function to check if campaign exists
+    function campaignExists(uint256 _campaignId) public view returns (bool) {
+        return campaigns[_campaignId].owner != address(0);
+    }
+
+    function setPaused(bool _paused) external onlyOwner {
+        paused = _paused;
+    }
 }
 
 /**
@@ -175,4 +215,37 @@ contract CharityDonation {
  * 3. ensures campaign is either completed or deadline passed
  * 4. transfers entire balance to campaign owner
  * 5. emits FundsWithdrawn event
+ */
+
+/**
+ * ============================ getCampaign() =======================================
+ * 1. takes a campaign ID as input
+ * 2. returns the complete Campaign struct for the given ID
+ * 3. provides read-only access to campaign details
+ */
+
+/**
+ * ============================ campaignExists() =======================================
+ * 1. takes a campaign ID as input
+ * 2. checks if the campaign owner address is not zero
+ * 3. returns boolean indicating if campaign exists
+ */
+
+/**
+ * ============================ setPaused() =======================================
+ * 1. requires caller to be contract owner
+ * 2. updates the contract pause state
+ * 3. controls emergency pause functionality
+ */
+
+/**
+ * ============================ whenNotPaused modifier =======================================
+ * 1. checks if contract is not in paused state
+ * 2. allows function execution only when contract is active
+ */
+
+/**
+ * ============================ onlyOwner modifier =======================================
+ * 1. verifies caller is the contract owner
+ * 2. restricts function access to authorized user
  */
