@@ -1,5 +1,7 @@
 # Charity Donation Platform Smart Contract
 
+![Donation UI Design](donation-UI-design.jpeg)
+
 A decentralized charity donation platform built on Ethereum that enables transparent, secure, and efficient fundraising campaigns.
 
 ## Features
