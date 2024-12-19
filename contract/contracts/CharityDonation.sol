@@ -21,9 +21,14 @@ contract CharityDonationPlatform {
         uint256 amount;
     }
 
-    // Mappings
+    // Maps campaign IDs to Campaign struct data
     mapping(uint256 => Campaign) public campaigns;
+
+    // Maps campaign IDs to an array of donors and their donation amounts
     mapping(uint256 => Donor[]) public campaignDonors;
+
+    // Maps campaign IDs to donor addresses to track if they've already donated
+    // Used to count unique donors per campaign
     mapping(uint256 => mapping(address => bool)) public hasDonated;
 
     // Minimum donation amount ( can be adjusted)

@@ -10,6 +10,8 @@ A decentralized charity donation platform built on Ethereum that enables transpa
 - **Donor Management**: Unique donor tracking and donation history
 - **Automated Completion**: Automatic campaign completion upon reaching targets
 - **Secure Withdrawals**: Role-based access control for campaign fund withdrawals
+- **getRemainingAmount**: Calculates and returns the remaining amount needed to reach the campaign targe
+- **getCampaignProgress**: Returns the campaign's progress as a percentage
 
 ## Smart Contract Details
 
@@ -55,7 +57,7 @@ A decentralized charity donation platform built on Ethereum that enables transpa
 
 1. Clone the repository
 ```bash
-git clone [https://github.com/RodgersChayuga/charity-donation-platform]
+git clone [https://github.com/RodgersChayuga/charity-donation-platform]()
 ```
 
 2. Install dependencies
