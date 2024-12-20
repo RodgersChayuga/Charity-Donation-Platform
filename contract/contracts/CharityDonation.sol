@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import "@openzeppelin/contracts/utils/Counters.sol";
-
 contract CharityDonationPlatform {
     // Struct to represent a campaign
     // This struct defines what information each charity campaign stores
