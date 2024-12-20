@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
+import "@openzeppelin/contracts/utils/Counters.sol";
+
 contract CharityDonationPlatform {
     // Struct to represent a campaign
+    // This struct defines what information each charity campaign stores
     struct Campaign {
         uint256 id;
         string title;
@@ -16,23 +19,18 @@ contract CharityDonationPlatform {
     }
 
     // Struct to represent a donor
+    // This tracks individual donations with
     struct Donor {
-        address donorAddress;
-        uint256 amount;
+        address donorAddress; //The donor's Ethereum address
+        uint256 amount; //The amount they donated
     }
 
-    // Maps campaign IDs to Campaign struct data
-    mapping(uint256 => Campaign) public campaigns;
+    // These create the data relationships
+    mapping(uint256 => Campaign) public campaigns; // Links campaign IDs to their data
+    mapping(uint256 => Donor[]) public campaignDonors; // Links campaign IDs to arrays of donors
+    mapping(uint256 => mapping(address => bool)) public hasDonated; // A double mapping to track unique donors per campaign
 
-    // Maps campaign IDs to an array of donors and their donation amounts
-    mapping(uint256 => Donor[]) public campaignDonors;
-
-    // Maps campaign IDs to donor addresses to track if they've already donated
-    // Used to count unique donors per campaign
-    mapping(uint256 => mapping(address => bool)) public hasDonated;
-
-    // Minimum donation amount ( can be adjusted)
-    uint256 public constant MIN_DONATION_AMOUNT = 0.01 ether;
+    uint256 public constant MIN_DONATION_AMOUNT = 0.01 ether; // Sets a minimum donation amount to prevent dust attacks and ensure meaningful donations.
 
     // Events
     event CampaignCreated(
@@ -55,7 +53,6 @@ contract CharityDonationPlatform {
     );
 
     // ========================================== Create Campaign ==============================================
-
     // Create counter for different campaign IDs
     uint256 public campaignCounter = 0;
 
@@ -84,7 +81,7 @@ contract CharityDonationPlatform {
         campaignCounter++;
         uint256 campaignId = campaignCounter;
 
-        campaigns[campaignId] = Campaign({
+        campaigns[campaignId] = Campaign({ // Sets the campaign Parameters from user input
             id: campaignId,
             title: _title,
             description: _description,
