@@ -6,10 +6,10 @@ import Footer from "@/components/Footer";
 
 export default function Home() {
   return (
-    <div className="flex flex-col dark:bg-gray-800 bg-[#F5F5FF] min-h-screen px-8 gap-8  font-[family-name:var(--font-geist-sans)]">
+    <div className="flex flex-col min-h-screen px-8 gap-8 md:w-[90%] mx-auto font-[family-name:var(--font-geist-sans)] ">
 
       <Header />
-      <main className="flex-1 flex flex-col md:flex-row gap-8 items-center sm:items-start">
+      <main className="flex-1 flex flex-col md:flex-row gap-8 items-center justify-center  mx-auto w-full">
         <div className="flex flex-col flex-1 gap-8">
           <div>
             <h3 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold">Help Children Reach</h3>

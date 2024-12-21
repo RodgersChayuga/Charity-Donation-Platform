@@ -2,6 +2,8 @@
 
 import Image from 'next/image';
 import { ModeToggle } from "./ModeToggle";
+import { Button } from "./ui/button";
+import { ArrowUp } from "lucide-react";
 
 export default function Header() {
     return (
@@ -25,7 +27,12 @@ export default function Header() {
                     <p className="dark:text-white md:text-sm lg:text-md">By Rodgers Chayuga</p>
                 </div>
             </div>
-            <ModeToggle />
+            <div className="flex gap-2 items-center">
+                <Button className="bg-[#912fdb] hover:bg-[#acabf9]">
+                    Connect <ArrowUp />
+                </Button>
+                <ModeToggle />
+            </div>
         </div>
     );
 } 
