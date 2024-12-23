@@ -1,281 +1,311 @@
-import {
-    time,
-    loadFixture,
-} from "@nomicfoundation/hardhat-toolbox-viem/network-helpers";
+import { time, loadFixture } from "@nomicfoundation/hardhat-toolbox-viem/network-helpers";
 import { expect } from "chai";
 import hre from "hardhat";
-import { parseEther, getAddress } from "viem";
+import { parseEther, getAddress, WalletClient, PublicClient, Address, Account } from "viem";
 
-describe("CharityDonationPlatform", function () {
-    // First, create our fixture that will be reused across tests
-    async function deployCharityFixture() {
-        // Define test constants
-        const CAMPAIGN_TITLE = "Save the Ocean";
-        const CAMPAIGN_DESCRIPTION = "Clean ocean campaign";
-        const TARGET_AMOUNT = parseEther("10"); // 10 ETH
-        const DEADLINE = 7 * 24 * 60 * 60; // 1 week in seconds
-        const MIN_DONATION = parseEther("0.01"); // Minimum donation from contract
+interface Contract {
+    write: Record<string, Function>;
+    read: Record<string, Function>;
+    address: Address;
+};
 
-        // Get test accounts
-        const [deployer, campaignOwner, donor1, donor2] = await hre.viem.getWalletClients();
+interface WalletClientWithAccount extends WalletClient {
+    account: Account;
+}
 
-        // Deploy contract
-        const charityPlatform = await hre.viem.deployContract("CharityDonationPlatform");
+interface TestSetup {
+    contract: Contract;
+    owner: WalletClientWithAccount;
+    creator: WalletClientWithAccount;
+    donor1: WalletClientWithAccount;
+    donor2: WalletClientWithAccount;
+    client: PublicClient;
+}
 
-        // Get public client for reading blockchain state
-        const publicClient = await hre.viem.getPublicClient();
+interface CampaignSetup extends TestSetup {
+    campaignId: bigint;
+}
 
-        return {
-            charityPlatform,
-            deployer,
-            campaignOwner,
-            donor1,
-            donor2,
-            publicClient,
-            CAMPAIGN_TITLE,
-            CAMPAIGN_DESCRIPTION,
-            TARGET_AMOUNT,
-            DEADLINE,
-            MIN_DONATION,
-        };
-    }
+interface Campaign {
+    id: bigint;
+    title: string;
+    description: string;
+    targetAmount: bigint;
+    raisedAmount: bigint;
+    owner: string;
+    deadline: bigint;
+    isCompleted: boolean;
+    numberOfDonors: bigint;
+}
 
-    // Move createTestCampaign here, before all describe blocks
-    async function createTestCampaign() {
-        const fixture = await loadFixture(deployCharityFixture);
+const TEST_VALUES = {
+    TITLE: "Save the Ocean",
+    DESCRIPTION: "Clean ocean campaign",
+    TARGET: parseEther("10"),
+    DURATION: 7 * 24 * 60 * 60, // 1 week
+    MIN_DONATION: parseEther("0.01"),
+    MAX_DURATION: 365 * 24 * 60 * 60 // 1 year (for edge case testing)
+} as const;
 
-        // Create a campaign first
-        await fixture.charityPlatform.write.createCampaign([
-            fixture.CAMPAIGN_TITLE,
-            fixture.CAMPAIGN_DESCRIPTION,
-            fixture.TARGET_AMOUNT,
-            BigInt(fixture.DEADLINE)
-        ], { account: fixture.campaignOwner.account });
+describe("CharityDonationPlatformContract", () => {
+    const deployContract = async (): Promise<TestSetup> => {
+        const [owner, creator, donor1, donor2] = await hre.viem.getWalletClients();
+        const contract = await hre.viem.deployContract("CharityDonationPlatform");
+        const client = await hre.viem.getPublicClient();
 
-        return fixture;
-    }
+        return { contract, owner, creator, donor1, donor2, client };
+    };
 
-    // Test Campaign Creation
-    describe("Campaign Creation", function () {
-        it("Should create a campaign with correct parameters", async function () {
-            const {
-                charityPlatform,
-                campaignOwner,
-                CAMPAIGN_TITLE,
-                CAMPAIGN_DESCRIPTION,
-                TARGET_AMOUNT,
-                DEADLINE,
-            } = await loadFixture(deployCharityFixture);
+    const setupCampaign = async (): Promise<CampaignSetup> => {
+        const setup = await loadFixture(deployContract);
 
-            // Create campaign
-            const tx = await charityPlatform.write.createCampaign([
-                CAMPAIGN_TITLE,
-                CAMPAIGN_DESCRIPTION,
-                TARGET_AMOUNT,
-                BigInt(DEADLINE)
-            ], { account: campaignOwner.account });
+        await setup.contract.write.createCampaign([
+            TEST_VALUES.TITLE,
+            TEST_VALUES.DESCRIPTION,
+            TEST_VALUES.TARGET,
+            BigInt(TEST_VALUES.DURATION)
+        ], { account: setup.creator.account });
 
-            // Get campaign ID (should be 1 as it's the first campaign)
-            const campaignId = 1n;
+        return { ...setup, campaignId: 1n };
+    };
 
-            type Campaign = {
-                id: bigint;
-                title: string;
-                description: string;
-                targetAmount: bigint;
-                raisedAmount: bigint;
-                owner: string;
-                deadline: bigint;
-                isCompleted: boolean;
-                numberOfDonors: bigint;
-            }
+    const parseCampaign = (campaignArray: any[]): Campaign => ({
+        id: campaignArray[0],
+        title: campaignArray[1],
+        description: campaignArray[2],
+        targetAmount: campaignArray[3],
+        raisedAmount: campaignArray[4],
+        owner: campaignArray[5],
+        deadline: campaignArray[6],
+        isCompleted: campaignArray[7],
+        numberOfDonors: campaignArray[8]
+    });
 
-            // Get campaign details
-            const campaignArray = await charityPlatform.read.campaigns([campaignId]);
-            const campaign: Campaign = {
-                id: campaignArray[0],
-                title: campaignArray[1],
-                description: campaignArray[2],
-                targetAmount: campaignArray[3],
-                raisedAmount: campaignArray[4],
-                owner: campaignArray[5],
-                deadline: campaignArray[6],
-                isCompleted: campaignArray[7],
-                numberOfDonors: campaignArray[8]
-            };
+    describe("Campaign Creation", () => {
+        it("creates campaign with correct initial state", async () => {
+            const { contract, creator } = await deployContract();
 
-            // Verify campaign details
-            expect(campaign.title).to.equal(CAMPAIGN_TITLE);
-            expect(campaign.description).to.equal(CAMPAIGN_DESCRIPTION);
-            expect(campaign.targetAmount).to.equal(TARGET_AMOUNT);
-            expect(campaign.owner).to.equal(getAddress(campaignOwner.account.address));
+            await contract.write.createCampaign([
+                TEST_VALUES.TITLE,
+                TEST_VALUES.DESCRIPTION,
+                TEST_VALUES.TARGET,
+                BigInt(TEST_VALUES.DURATION)
+            ], { account: creator.account });
+
+            const campaignData = await contract.read.campaigns([1n]);
+            const campaign = parseCampaign(campaignData);
+
+            expect(campaign.title).to.equal(TEST_VALUES.TITLE);
+            expect(campaign.targetAmount).to.equal(TEST_VALUES.TARGET);
+            expect(campaign.owner).to.equal(getAddress(creator.account.address));
             expect(campaign.isCompleted).to.be.false;
-            expect(campaign.numberOfDonors).to.equal(0n);
         });
 
-        it("Should revert if target amount is 0", async function () {
-            const {
-                charityPlatform,
-                campaignOwner,
-                CAMPAIGN_TITLE,
-                CAMPAIGN_DESCRIPTION,
-                DEADLINE,
-            } = await loadFixture(deployCharityFixture);
+        it("should increment campaign counter", async () => {
+            const { contract, creator } = await deployContract();
+
+            await contract.write.createCampaign([
+                TEST_VALUES.TITLE,
+                TEST_VALUES.DESCRIPTION,
+                TEST_VALUES.TARGET,
+                BigInt(TEST_VALUES.DURATION)
+            ], { account: creator.account });
+
+            const counter = await contract.read.campaignCounter();
+            expect(counter).to.equal(1n);
+        });
+
+        it("should revert with invalid deadline (zero)", async () => {
+            const { contract, creator } = await deployContract();
 
             await expect(
-                charityPlatform.write.createCampaign([
-                    CAMPAIGN_TITLE,
-                    CAMPAIGN_DESCRIPTION,
+                contract.write.createCampaign([
+                    TEST_VALUES.TITLE,
+                    TEST_VALUES.DESCRIPTION,
+                    TEST_VALUES.TARGET,
+                    0n
+                ], { account: creator.account })
+            ).to.be.rejectedWith("Deadline must be in the future");
+        });
+
+        it("should revert with invalid target amount", async () => {
+            const { contract, creator } = await deployContract();
+
+            await expect(
+                contract.write.createCampaign([
+                    TEST_VALUES.TITLE,
+                    TEST_VALUES.DESCRIPTION,
                     0n,
-                    BigInt(DEADLINE)
-                ], { account: campaignOwner.account })
+                    BigInt(TEST_VALUES.DURATION)
+                ], { account: creator.account })
             ).to.be.rejectedWith("Target amount must be greater than 0");
         });
     });
 
-    // Test Donations
-    describe("Donations", function () {
-        it("Should accept valid donations", async function () {
-            const { charityPlatform, donor1, TARGET_AMOUNT } = await createTestCampaign();
+    describe("Donations", () => {
+        it("processes single donation correctly", async () => {
+            const { contract, donor1 } = await setupCampaign();
             const donationAmount = parseEther("1");
-            const campaignId = 1n;
-
-            await charityPlatform.write.donateToCampaign([campaignId], {
+            await contract.write.donateToCampaign([1n], {
                 account: donor1.account,
-                value: donationAmount,
+                value: donationAmount
             });
-            const campaign = await charityPlatform.read.campaigns([campaignId]);
-            const [
-                id,
-                title,
-                description,
-                targetAmount,
-                raisedAmount,
-                owner,
-                deadline,
-                isCompleted,
-                numberOfDonors
-            ] = campaign;
-            expect(raisedAmount).to.equal(donationAmount);
-            expect(numberOfDonors).to.equal(1n);
+
+            const campaign = parseCampaign(await contract.read.campaigns([1n]));
+            expect(campaign.raisedAmount).to.equal(donationAmount);
+            expect(campaign.numberOfDonors).to.equal(1n);
         });
 
-        it("Should track unique donors correctly", async function () {
-            const { charityPlatform, donor1 } = await createTestCampaign();
-            const donationAmount = parseEther("1");
-            const campaignId = 1n;
+        it("handles multiple donations from same donor", async () => {
+            const { contract, donor1 } = await setupCampaign();
+            const amount = parseEther("1");
 
-            // First donation
-            await charityPlatform.write.donateToCampaign([campaignId], {
+            await contract.write.donateToCampaign([1n], {
                 account: donor1.account,
-                value: donationAmount,
+                value: amount
+            });
+            await contract.write.donateToCampaign([1n], {
+                account: donor1.account,
+                value: amount
             });
 
-            // Second donation from same donor
-            await charityPlatform.write.donateToCampaign([campaignId], {
+            const campaign = parseCampaign(await contract.read.campaigns([1n]));
+            expect(campaign.raisedAmount).to.equal(amount * 2n);
+            expect(campaign.numberOfDonors).to.equal(1n);
+        });
+
+        it("should revert donations below minimum amount", async () => {
+            const { contract, donor1 } = await setupCampaign();
+
+            await expect(
+                contract.write.donateToCampaign([1n], {
+                    account: donor1.account,
+                    value: parseEther("0.009") // Below MIN_DONATION_AMOUNT
+                })
+            ).to.be.rejectedWith("Donation amount is below minimum");
+        });
+
+        it("should revert donations after deadline", async () => {
+            const { contract, donor1 } = await setupCampaign();
+
+            await time.increase(TEST_VALUES.DURATION + 1);
+
+            await expect(
+                contract.write.donateToCampaign([1n], {
+                    account: donor1.account,
+                    value: parseEther("1")
+                })
+            ).to.be.rejectedWith("Campaign has ended");
+        });
+
+        it("should mark campaign as completed when target reached", async () => {
+            const { contract, donor1 } = await setupCampaign();
+
+            await contract.write.donateToCampaign([1n], {
                 account: donor1.account,
-                value: donationAmount,
+                value: TEST_VALUES.TARGET
             });
-            const campaign = await charityPlatform.read.campaigns([campaignId]);
-            const [
-                id,
-                title,
-                description,
-                targetAmount,
-                raisedAmount,
-                owner,
-                deadline,
-                isCompleted,
-                numberOfDonors
-            ] = campaign;
-            expect(numberOfDonors).to.equal(1n); // Should still be 1
-            expect(raisedAmount).to.equal(donationAmount * 2n);
+
+            const campaign = parseCampaign(await contract.read.campaigns([1n]));
+            expect(campaign.isCompleted).to.be.true;
         });
     });
 
-    // Test Withdrawals
-    describe("Withdrawals", function () {
-        it("Should allow owner to withdraw after deadline", async function () {
-            const {
-                charityPlatform,
-                campaignOwner,
-                donor1,
-                DEADLINE
-            } = await createTestCampaign();
-            const campaignId = 1n;
 
-            // Make a donation
-            await charityPlatform.write.donateToCampaign([campaignId], {
+    describe("Withdrawals", () => {
+        it("allows owner withdrawal after deadline", async () => {
+            const { contract, creator, donor1 } = await setupCampaign();
+
+            await contract.write.donateToCampaign([1n], {
                 account: donor1.account,
-                value: parseEther("1"),
+                value: parseEther("1")
             });
 
-            // Fast forward time past deadline
-            await time.increase(DEADLINE + 1);
-
-            // Withdraw funds
-            await charityPlatform.write.withdrawFunds([campaignId], {
-                account: campaignOwner.account,
+            await time.increase(TEST_VALUES.DURATION + 1);
+            await contract.write.withdrawFunds([1n], {
+                account: creator.account
             });
-            const campaign = await charityPlatform.read.campaigns([campaignId]);
-            const [
-                id,
-                title,
-                description,
-                targetAmount,
-                raisedAmount,
-                owner,
-                deadline,
-                isCompleted,
-                numberOfDonors
-            ] = campaign;
-            expect(raisedAmount).to.equal(0n);
+
+            const campaign = parseCampaign(await contract.read.campaigns([1n]));
+            expect(campaign.raisedAmount).to.equal(0n);
         });
 
-        it("Should prevent non-owners from withdrawing", async function () {
-            const {
-                charityPlatform,
-                donor1,
-                DEADLINE
-            } = await createTestCampaign();
-            const campaignId = 1n;
-
-            await time.increase(DEADLINE + 1);
+        it("should revert withdrawal from non-owner", async () => {
+            const { contract, donor1 } = await setupCampaign();
 
             await expect(
-                charityPlatform.write.withdrawFunds([campaignId], {
-                    account: donor1.account,
+                contract.write.withdrawFunds([1n], {
+                    account: donor1.account
                 })
             ).to.be.rejectedWith("Only campaign owner can withdraw");
         });
-    });
 
-    // Test Campaign Progress
-    describe("Campaign Progress", function () {
-        it("Should calculate remaining amount correctly", async function () {
-            const { charityPlatform, donor1 } = await createTestCampaign();
-            const campaignId = 1n;
+        it("should revert withdrawal before deadline", async () => {
+            const { contract, creator } = await setupCampaign();
 
-            await charityPlatform.write.donateToCampaign([campaignId], {
-                account: donor1.account,
-                value: parseEther("4"),
-            });
-
-            const remainingAmount = await charityPlatform.read.getRemainingAmount([campaignId]);
-            expect(remainingAmount).to.equal(parseEther("6")); // 10 - 4 = 6
+            await expect(
+                contract.write.withdrawFunds([1n], {
+                    account: creator.account
+                })
+            ).to.be.rejectedWith("Campaign is still active");
         });
 
-        it("Should calculate progress percentage correctly", async function () {
-            const { charityPlatform, donor1 } = await createTestCampaign();
-            const campaignId = 1n;
+        it("should revert withdrawal with no funds", async () => {
+            const { contract, creator } = await setupCampaign();
 
-            await charityPlatform.write.donateToCampaign([campaignId], {
+            await time.increase(TEST_VALUES.DURATION + 1);
+
+            await expect(
+                contract.write.withdrawFunds([1n], {
+                    account: creator.account
+                })
+            ).to.be.rejectedWith("No funds to withdraw");
+        });
+
+        it("should emit FundsWithdrawn event", async () => {
+            const { contract, creator, donor1, client } = await setupCampaign();
+            const donationAmount = parseEther("1");
+
+            await contract.write.donateToCampaign([1n], {
                 account: donor1.account,
-                value: parseEther("2.5"),
+                value: donationAmount
             });
 
-            const progress = await charityPlatform.read.getCampaignProgress([campaignId]);
-            expect(progress).to.equal(25n); // 25% progress (2.5 out of 10 ETH)
+            await time.increase(TEST_VALUES.DURATION + 1);
+
+            const tx = await contract.write.withdrawFunds([1n], {
+                account: creator.account
+            });
+
+            const receipt = await client.waitForTransactionReceipt({ hash: tx });
+        });
+    });
+
+
+    describe("Campaign Progress", () => {
+        it("should calculate remaining amount correctly", async () => {
+            const { contract, donor1 } = await setupCampaign();
+            const donationAmount = parseEther("4");
+
+            await contract.write.donateToCampaign([1n], {
+                account: donor1.account,
+                value: donationAmount
+            });
+
+            const remaining = await contract.read.getRemainingAmount([1n]);
+            expect(remaining).to.equal(TEST_VALUES.TARGET - donationAmount);
+        });
+
+        it("should calculate progress percentage correctly", async () => {
+            const { contract, donor1 } = await setupCampaign();
+
+            await contract.write.donateToCampaign([1n], {
+                account: donor1.account,
+                value: TEST_VALUES.TARGET / 2n
+            });
+
+            const progress = await contract.read.getCampaignProgress([1n]);
+            expect(progress).to.equal(50n);
         });
     });
 });

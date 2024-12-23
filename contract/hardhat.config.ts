@@ -6,7 +6,7 @@ const config: HardhatUserConfig = {
   paths: {
     tests: "./test",    // Points to main test directory
     artifacts: "./artifacts",
-  },
+  }
 };
 
 export default config;
