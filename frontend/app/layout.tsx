@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css";
+import { AppSidebar } from "@/components/app-sidebar";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -25,9 +28,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="h-full">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#F5F5FF] dark:bg-gray-800`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#F5F5FF] dark:bg-gray-800 min-h-full flex flex-col`}
       >
         <ThemeProvider
           attribute="class"
@@ -35,7 +38,19 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+
+          <div className="flex md:flex-row flex-1 flex-col-reverse h-full ">
+            <AppSidebar />
+            <div className="flex-1 flex flex-col min-h-full">
+              <div className="flex flex-col flex-1 w-full gap-8  mx-auto font-[family-name:var(--font-geist-sans)] ">
+                <Header />
+                <main className="flex-1 md:w-[95%] px-8 mx-auto">
+                  {children}
+                </main>
+                <Footer />
+              </div>
+            </div>
+          </div>
         </ThemeProvider>
       </body>
     </html>
